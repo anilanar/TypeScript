@@ -63,7 +63,7 @@ namespace ts {
         {
             name: "reactNamespace",
             type: "string",
-            description: Diagnostics.Specifies_the_object_invoked_for_createElement_and_spread_when_targeting_react_JSX_emit
+            description: Diagnostics.Specify_the_object_invoked_for_createElement_and_spread_when_targeting_react_JSX_emit
         },
         {
             name: "listFiles",
@@ -77,7 +77,7 @@ namespace ts {
             name: "mapRoot",
             type: "string",
             isFilePath: true,
-            description: Diagnostics.Specifies_the_location_where_debugger_should_locate_map_files_instead_of_generated_locations,
+            description: Diagnostics.Specify_the_location_where_debugger_should_locate_map_files_instead_of_generated_locations,
             paramType: Diagnostics.LOCATION,
         },
         {
@@ -102,7 +102,7 @@ namespace ts {
                 "crlf": NewLineKind.CarriageReturnLineFeed,
                 "lf": NewLineKind.LineFeed
             },
-            description: Diagnostics.Specifies_the_end_of_line_sequence_to_be_used_when_emitting_files_Colon_CRLF_dos_or_LF_unix,
+            description: Diagnostics.Specify_the_end_of_line_sequence_to_be_used_when_emitting_files_Colon_CRLF_dos_or_LF_unix,
             paramType: Diagnostics.NEWLINE,
             error: Diagnostics.Argument_for_newLine_option_must_be_CRLF_or_LF
         },
@@ -165,7 +165,6 @@ namespace ts {
         },
         {
             name: "pretty",
-            paramType: Diagnostics.KIND,
             description: Diagnostics.Stylize_errors_and_messages_using_color_and_context_experimental,
             type: "boolean"
         },
@@ -186,7 +185,7 @@ namespace ts {
             name: "rootDir",
             type: "string",
             isFilePath: true,
-            description: Diagnostics.Specifies_the_root_directory_of_input_files_Use_to_control_the_output_directory_structure_with_outDir,
+            description: Diagnostics.Specify_the_root_directory_of_input_files_Use_to_control_the_output_directory_structure_with_outDir,
             paramType: Diagnostics.LOCATION,
         },
         {
@@ -202,7 +201,7 @@ namespace ts {
             name: "sourceRoot",
             type: "string",
             isFilePath: true,
-            description: Diagnostics.Specifies_the_location_where_debugger_should_locate_TypeScript_files_instead_of_source_locations,
+            description: Diagnostics.Specify_the_location_where_debugger_should_locate_TypeScript_files_instead_of_source_locations,
             paramType: Diagnostics.LOCATION,
         },
         {
@@ -231,7 +230,7 @@ namespace ts {
                 "es6": ScriptTarget.ES6,
                 "es2015": ScriptTarget.ES2015,
             },
-            description: Diagnostics.Specify_ECMAScript_target_version_Colon_ES3_default_ES5_or_ES2015_experimental,
+            description: Diagnostics.Specify_ECMAScript_target_version_Colon_ES3_default_ES5_or_ES2015,
             paramType: Diagnostics.VERSION,
             error: Diagnostics.Argument_for_target_option_must_be_ES3_ES5_or_ES2015
         },
@@ -264,7 +263,8 @@ namespace ts {
                 "node": ModuleResolutionKind.NodeJs,
                 "classic": ModuleResolutionKind.Classic,
             },
-            description: Diagnostics.Specifies_module_resolution_strategy_Colon_node_Node_js_or_classic_TypeScript_pre_1_6,
+            description: Diagnostics.Specify_module_resolution_strategy_Colon_node_Node_js_or_classic_TypeScript_pre_1_6,
+            paramType: Diagnostics.KIND,
             error: Diagnostics.Argument_for_moduleResolution_option_must_be_node_or_classic,
         },
         {
@@ -332,6 +332,38 @@ namespace ts {
             name: "noImplicitUseStrict",
             type: "boolean",
             description: Diagnostics.Do_not_emit_use_strict_directives_in_module_output
+        },
+        {
+            name: "library",
+            shortName: "l",
+            type: {
+                // JavaScript only
+                "+es5": LibraryKinds.ES5,
+                "+es6": LibraryKinds.ES6,
+                "+es7": LibraryKinds.ES7,
+                // Host only
+                "+dom": LibraryKinds.DOM,
+                "+webworker": LibraryKinds.WebWorker,
+                "+scripthost": LibraryKinds.ScriptHost,
+                // ES6 Or ESNext By-feature options
+                "+es6.array": LibraryKinds.ES6Array,
+                "+es6.collection": LibraryKinds.ES6Collection,
+                "+es6.function": LibraryKinds.ES6Function,
+                "+es6.iterable": LibraryKinds.ES6Iterable,
+                "+es6.math": LibraryKinds.ES6Math,
+                "+es6.number": LibraryKinds.ES6Number,
+                "+es6.object": LibraryKinds.ES6Object,
+                "+es6.promise": LibraryKinds.ES6Promise,
+                "+es6.proxy": LibraryKinds.ES6Proxy,
+                "+es6.reflect": LibraryKinds.ES6Reflect,
+                "+es6.regexp": LibraryKinds.ES6Regexp,
+                "+es6.symbol": LibraryKinds.ES6Symbol,
+                "+es6.symbol.wellknown": LibraryKinds.ES6WellKnownSymbol,
+                "+es7.array.include": LibraryKinds.ES7ArrayInclude
+            },
+            paramType: Diagnostics.LIBRARY,
+            description: Diagnostics.Specify_library_to_be_included_in_the_compilation_Colon,
+            error: Diagnostics.Arguments_for_library_option_must_be_Colon_0
         }
     ];
 
@@ -342,6 +374,7 @@ namespace ts {
     }
 
     let optionNameMapCache: OptionNameMap;
+
     /* @internal */
     export function getOptionNameMap(): OptionNameMap {
         if (optionNameMapCache) {
@@ -359,6 +392,26 @@ namespace ts {
 
         optionNameMapCache = { optionNameMap, shortOptionNames };
         return optionNameMapCache;
+    }
+
+    let libraryKindArrayCache: string[];
+    export function convertLibraryKindToArray(): string[] {
+        if (libraryKindArrayCache) {
+            return libraryKindArrayCache;
+        }
+        const { optionNameMap } = getOptionNameMap();
+
+        const libraryOpt = optionNameMap["library"];
+        const types = <Map<number>>libraryOpt.type;
+        const typeNames: string[] = [];
+        for (const name in types) {
+            if (types.hasOwnProperty(name)) {
+                typeNames.push(name);
+            }
+        }
+
+        libraryKindArrayCache = typeNames;
+        return typeNames;
     }
 
     export function parseCommandLine(commandLine: string[], readFile?: (path: string) => string): ParsedCommandLine {
@@ -416,10 +469,35 @@ namespace ts {
                                     break;
                                 // If not a primitive, the possible types are specified in what is effectively a map of options.
                                 default:
-                                    let map = <Map<number>>opt.type;
+                                    const map = <Map<number>>opt.type;
                                     let key = (args[i] || "").toLowerCase();
                                     i++;
-                                    if (hasProperty(map, key)) {
+                                    // If the current option is '--library' which specifies library files to be include in the compilation
+                                    if (opt.paramType === Diagnostics.LIBRARY) {
+                                        if (!options[opt.name]) {
+                                            options[opt.name] = [];
+                                        }
+                                        const typeNamesText = convertLibraryKindToArray().join(", ");
+                                        if (hasProperty(map, key)) {
+                                            (<LibraryKinds[]>options[opt.name]).push(map[key]);
+                                            key = args[i] ? args[i].toLowerCase() : undefined;
+                                            // "--library" can take more than one value; keep reading the next argument until one run into new option
+                                            while (key && key.charCodeAt(0) === CharacterCodes.plus) {
+                                                if (hasProperty(map, key)) {
+                                                    (<LibraryKinds[]>options[opt.name]).push(map[key]);
+                                                }
+                                                else {
+                                                    errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, typeNamesText));
+                                                }
+                                                i++;
+                                                key = args[i] ? args[i].toLowerCase() : undefined;
+                                            }
+                                        }
+                                        else {
+                                            errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, typeNamesText));
+                                        }
+                                    }
+                                    else if (hasProperty(map, key)) {
                                         options[opt.name] = map[key];
                                     }
                                     else {
