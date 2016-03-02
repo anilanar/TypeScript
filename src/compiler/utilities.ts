@@ -2636,6 +2636,75 @@ namespace ts {
         return options.target === ScriptTarget.ES6 ? "lib.es6.d.ts" : "lib.d.ts";
     }
 
+    export function convertLibraryOptionToLibFileName(options: CompilerOptions): string[] {
+        return options.library.map((kind) => {
+            let name: string;
+            switch (kind) {
+                case LibraryKinds.DOM:
+                    name = "dom";
+                    break;
+                case LibraryKinds.WebWorker:
+                    name = "webworker";
+                    break;
+                case LibraryKinds.ScriptHost:
+                    name = "scripthost";
+                    break;
+                case LibraryKinds.ES5:
+                    name = "es5";
+                    break;
+                case LibraryKinds.ES6:
+                    name = "es6";
+                    break;
+                case LibraryKinds.ES6Array:
+                    name = "es6.array";
+                    break;
+                case LibraryKinds.ES6Collection:
+                    name = "es6.collection";
+                    break;
+                case LibraryKinds.ES6Function:
+                    name = "es6.function";
+                    break;
+                case LibraryKinds.ES6Iterable:
+                    name = "es6.iterable";
+                    break;
+                case LibraryKinds.ES6Math:
+                    name = "es6.math";
+                    break;
+                case LibraryKinds.ES6Number:
+                    name = "es6.number";
+                    break;
+                case LibraryKinds.ES6Object:
+                    name = "es6.object";
+                    break;
+                case LibraryKinds.ES6Promise:
+                    name = "es6.promise";
+                    break;
+                case LibraryKinds.ES6Proxy:
+                    name = "es6.proxy";
+                    break;
+                case LibraryKinds.ES6Reflect:
+                    name = "es6.reflect";
+                    break;
+                case LibraryKinds.ES6Regexp:
+                    name = "es6.regexp";
+                    break;
+                case LibraryKinds.ES6Symbol:
+                    name = "es6.symbol";
+                    break;
+                case LibraryKinds.ES6WellKnownSymbol:
+                    name = "es6.symbol.wellknown";
+                    break;
+                case LibraryKinds.ES7ArrayInclude:
+                    name = "es7.array.include";
+                    break;
+                default:
+                    Debug.fail("Invalid library kind");
+                    name = "";
+            }
+            return `lib.${name}.d.ts`;
+        });
+    }
+
     export function textSpanEnd(span: TextSpan) {
         return span.start + span.length;
     }
