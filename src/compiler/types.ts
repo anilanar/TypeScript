@@ -2484,33 +2484,6 @@ namespace ts {
         JSX,
     }
 
-    // TODO (yuisu): add Browser and Node and ES3 and LatestNode
-    export const enum LibraryKinds {
-        // JavaScript only
-        ES5,
-        ES6,
-        ES7,
-        // Host only
-        DOM,
-        WebWorker,
-        ScriptHost,
-        // ES6 Or ESNext By-feature options
-        ES6Array,
-        ES6Collection,
-        ES6Function,
-        ES6Iterable,
-        ES6Math,
-        ES6Number,
-        ES6Object,
-        ES6Promise,
-        ES6Proxy,
-        ES6Reflect,
-        ES6Regexp,
-        ES6Symbol,
-        ES6WellKnownSymbol,
-        ES7ArrayInclude
-    }
-
     /* @internal */
     export const enum DiagnosticStyle {
         Simple,
