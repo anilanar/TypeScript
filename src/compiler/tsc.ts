@@ -651,7 +651,10 @@ namespace ts {
         const usageColumn: string[] = []; // Things like "-d, --declaration" go in here.
         const descriptionColumn: string[] = [];
 
-        const descriptionKindMap: Map<string[]> = {};  // Map between option.description and list of option.type if it is a kind
+        // Map between a description an additional information needed
+        // For example, --library option will have an additional information of
+        //      a list of all possible library-options
+        const descriptionDetailMap: Map<string[]> = {};
 
         for (let i = 0; i < optsList.length; i++) {
             const option = optsList[i];
@@ -677,7 +680,7 @@ namespace ts {
 
             if (option.paramType === Diagnostics.LIBRARY) {
                 description = getDiagnosticText(option.description);
-                // TODO (yuisu): print help message
+                descriptionDetailMap[description] = getLibraryOptions().libraryOptionNames;
             }
             else {
                 description = getDiagnosticText(option.description);
@@ -699,11 +702,11 @@ namespace ts {
         for (let i = 0; i < usageColumn.length; i++) {
             const usage = usageColumn[i];
             const description = descriptionColumn[i];
-            const kindsList = descriptionKindMap[description];
+            const descriptionDetail = descriptionDetailMap[description];
             output += usage + makePadding(marginLength - usage.length + 2) + description + sys.newLine;
 
-            if (kindsList) {
-                for (const kind of kindsList) {
+            if (descriptionDetail) {
+                for (const kind of descriptionDetail) {
                     output += makePadding(marginLength + 4) + kind + sys.newLine;
                 }
                 output += sys.newLine;
