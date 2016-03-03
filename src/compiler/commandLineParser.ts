@@ -336,31 +336,7 @@ namespace ts {
         {
             name: "library",
             shortName: "l",
-            type: {
-                // JavaScript only
-                "+es5": LibraryKinds.ES5,
-                "+es6": LibraryKinds.ES6,
-                "+es7": LibraryKinds.ES7,
-                // Host only
-                "+dom": LibraryKinds.DOM,
-                "+webworker": LibraryKinds.WebWorker,
-                "+scripthost": LibraryKinds.ScriptHost,
-                // ES6 Or ESNext By-feature options
-                "+es6.array": LibraryKinds.ES6Array,
-                "+es6.collection": LibraryKinds.ES6Collection,
-                "+es6.function": LibraryKinds.ES6Function,
-                "+es6.iterable": LibraryKinds.ES6Iterable,
-                "+es6.math": LibraryKinds.ES6Math,
-                "+es6.number": LibraryKinds.ES6Number,
-                "+es6.object": LibraryKinds.ES6Object,
-                "+es6.promise": LibraryKinds.ES6Promise,
-                "+es6.proxy": LibraryKinds.ES6Proxy,
-                "+es6.reflect": LibraryKinds.ES6Reflect,
-                "+es6.regexp": LibraryKinds.ES6Regexp,
-                "+es6.symbol": LibraryKinds.ES6Symbol,
-                "+es6.symbol.wellknown": LibraryKinds.ES6WellKnownSymbol,
-                "+es7.array.include": LibraryKinds.ES7ArrayInclude
-            },
+            type: "string",
             paramType: Diagnostics.LIBRARY,
             description: Diagnostics.Specify_library_to_be_included_in_the_compilation_Colon,
             error: Diagnostics.Arguments_for_library_option_must_be_Colon_0
@@ -394,24 +370,40 @@ namespace ts {
         return optionNameMapCache;
     }
 
-    let libraryKindArrayCache: string[];
-    export function convertLibraryKindToArray(): string[] {
-        if (libraryKindArrayCache) {
-            return libraryKindArrayCache;
-        }
-        const { optionNameMap } = getOptionNameMap();
+    export interface LibraryOptionMap {
+        libraryOptionFileNameMap: Map<string>;
+        libraryOptionNames: string[];
+    }
 
-        const libraryOpt = optionNameMap["library"];
-        const types = <Map<number>>libraryOpt.type;
-        const typeNames: string[] = [];
-        for (const name in types) {
-            if (types.hasOwnProperty(name)) {
-                typeNames.push(name);
+    let libraryOptionsMapCache: LibraryOptionMap;
+
+    export function getLibraryOptions(): LibraryOptionMap {
+        if (libraryOptionsMapCache) {
+            return libraryOptionsMapCache;
+        }
+
+        const libraryOptionFileNameMap: Map<string> = {};
+        const libraryOptionNames: string[] = [];
+
+        const directoryPath = getDirectoryPath(normalizePath(sys.getExecutingFilePath()));
+        const libraryFiles = sys.readDirectory(directoryPath, ".d.ts", [".ts", ".js"]).map(getBaseFileName);
+
+        // Convert available library files into library options that users can specify.
+        // The conversion only consider library which the following name format: lib.<library option>.d.ts
+        // i.e lib.es5.d.ts => es5
+        //     lib.es6.array.d.ts => es6.array
+        for (const file of libraryFiles) {
+            // librarFile is prefix with "lib."
+            if (file.indexOf("lib.") === 0) {
+                const indexOfFileExtension = file.indexOf(".d.ts");
+                const optionName = file.substr(4, indexOfFileExtension - 4);
+                libraryOptionFileNameMap[optionName] = file;
+                libraryOptionNames.push(optionName);
             }
         }
 
-        libraryKindArrayCache = typeNames;
-        return typeNames;
+        libraryOptionsMapCache = { libraryOptionFileNameMap, libraryOptionNames };
+        return libraryOptionsMapCache;
     }
 
     export function parseCommandLine(commandLine: string[], readFile?: (path: string) => string): ParsedCommandLine {
@@ -464,7 +456,30 @@ namespace ts {
                                     options[opt.name] = true;
                                     break;
                                 case "string":
-                                    options[opt.name] = args[i] || "";
+                                    // --library option can take multiple arguments.
+                                    // i.e --library es5
+                                    //     --library es5,es6.array  // Note: space is not allow between comma
+                                    if (opt.paramType === Diagnostics.LIBRARY) {
+                                        const { libraryOptionFileNameMap, libraryOptionNames } = getLibraryOptions();
+                                        if (!options[opt.name]) {
+                                            options[opt.name] = [];
+                                        }
+
+                                        const inputs = args[i].split(",");
+                                        for (const input of inputs) {
+                                            const libraryOption = input.toLowerCase();
+                                            if (hasProperty(libraryOptionFileNameMap, libraryOption)) {
+                                                (<string[]>options[opt.name]).push(libraryOption);
+                                            }
+                                            else {
+                                                errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, libraryOptionNames));
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    else {
+                                        options[opt.name] = args[i] || "";
+                                    }
                                     i++;
                                     break;
                                 // If not a primitive, the possible types are specified in what is effectively a map of options.
@@ -472,32 +487,7 @@ namespace ts {
                                     const map = <Map<number>>opt.type;
                                     let key = (args[i] || "").toLowerCase();
                                     i++;
-                                    // If the current option is '--library' which specifies library files to be include in the compilation
-                                    if (opt.paramType === Diagnostics.LIBRARY) {
-                                        if (!options[opt.name]) {
-                                            options[opt.name] = [];
-                                        }
-                                        const typeNamesText = convertLibraryKindToArray().join(", ");
-                                        if (hasProperty(map, key)) {
-                                            (<LibraryKinds[]>options[opt.name]).push(map[key]);
-                                            key = args[i] ? args[i].toLowerCase() : undefined;
-                                            // "--library" can take more than one value; keep reading the next argument until one run into new option
-                                            while (key && key.charCodeAt(0) === CharacterCodes.plus) {
-                                                if (hasProperty(map, key)) {
-                                                    (<LibraryKinds[]>options[opt.name]).push(map[key]);
-                                                }
-                                                else {
-                                                    errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, typeNamesText));
-                                                }
-                                                i++;
-                                                key = args[i] ? args[i].toLowerCase() : undefined;
-                                            }
-                                        }
-                                        else {
-                                            errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, typeNamesText));
-                                        }
-                                    }
-                                    else if (hasProperty(map, key)) {
+                                    if (hasProperty(map, key)) {
                                         options[opt.name] = map[key];
                                     }
                                     else {

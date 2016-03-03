@@ -2423,7 +2423,7 @@ namespace ts {
         allowSyntheticDefaultImports?: boolean;
         allowJs?: boolean;
         noImplicitUseStrict?: boolean;
-        library?: LibraryKinds[];
+        library?: string[];
         /* @internal */ stripInternal?: boolean;
 
         // Skip checking lib.d.ts to help speed up tests.
@@ -2431,7 +2431,7 @@ namespace ts {
         // Do not perform validation of output file name in transpile scenarios
         /* @internal */ suppressOutputPathCheck?: boolean;
 
-        [option: string]: string | number | boolean | LibraryKinds[] | TsConfigOnlyOptions;
+        [option: string]: string | number | boolean | string[] | TsConfigOnlyOptions;
     }
 
     export enum ModuleKind {

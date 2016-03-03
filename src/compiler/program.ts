@@ -631,10 +631,10 @@ namespace ts {
         }
 
         function getUserDefinedLibFileName(options: CompilerOptions): string[] {
-            const libFileNames = convertLibraryOptionToLibFileName(options);
             const directoryPath = getDirectoryPath(normalizePath(sys.getExecutingFilePath()));
-            return libFileNames.map(fileName => {
-                return combinePaths(directoryPath, fileName);
+            const { libraryOptionFileNameMap } = getLibraryOptions();
+            return options.library.map((name) => {
+                return combinePaths(directoryPath, libraryOptionFileNameMap[name]);
             });
         }
 

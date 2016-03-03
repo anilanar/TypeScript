@@ -677,8 +677,7 @@ namespace ts {
 
             if (option.paramType === Diagnostics.LIBRARY) {
                 description = getDiagnosticText(option.description);
-                const typeNames = convertLibraryKindToArray();
-                descriptionKindMap[description] = typeNames;
+                // TODO (yuisu): print help message
             }
             else {
                 description = getDiagnosticText(option.description);
