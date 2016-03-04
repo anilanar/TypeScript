@@ -389,21 +389,52 @@ namespace ts {
         const libraryFiles = sys.readDirectory(directoryPath, ".d.ts", [".ts", ".js"]).map(getBaseFileName);
 
         // Convert available library files into library options that users can specify.
-        // The conversion only consider library which the following name format: lib.<library option>.d.ts
-        // i.e lib.es5.d.ts => es5
-        //     lib.es6.array.d.ts => es6.array
         for (const file of libraryFiles) {
-            // librarFile is prefix with "lib."
+            // Only consider library prefix with lib. as that is the format we should to indicate compiler generated library files
             if (file.indexOf("lib.") === 0) {
                 const indexOfFileExtension = file.indexOf(".d.ts");
                 const optionName = file.substr(4, indexOfFileExtension - 4);
-                libraryOptionFileNameMap[optionName] = file;
-                libraryOptionNames.push(optionName);
+                if (optionName !== "") {
+                    libraryOptionFileNameMap[optionName] = file;
+                    libraryOptionNames.push(optionName);
+                }
             }
         }
 
         libraryOptionsMapCache = { libraryOptionFileNameMap, libraryOptionNames };
         return libraryOptionsMapCache;
+    }
+
+    /**
+     * TODO(yuisu) : comment
+     * @param argument
+     * @param opt
+     * @param options
+     * @param errors
+     */
+    /* @internal */
+    export function tryParseLibraryCommandLineOption(argument: string, opt: CommandLineOption, errors: Diagnostic[]): string[] {
+        // --library option can take multiple arguments.
+        // i.e --library es5
+        //     --library es5,es6.array  // Note: space is not allow between comma
+        if (opt.paramType === Diagnostics.LIBRARY) {
+            const { libraryOptionFileNameMap, libraryOptionNames } = getLibraryOptions();
+            const libraryFileNames: string[] = [];
+            const inputs = argument.split(",");
+            for (const input of inputs) {
+                const libraryOption = input.toLowerCase();
+                const libraryFileName = getProperty(libraryOptionFileNameMap, libraryOption);
+                if (libraryFileName) {
+                    libraryFileNames.push(libraryFileName);
+                }
+                else {
+                    errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, libraryOptionNames));
+                    break;
+                }
+            }
+           return libraryFileNames;
+        }
+        return undefined;
     }
 
     export function parseCommandLine(commandLine: string[], readFile?: (path: string) => string): ParsedCommandLine {
@@ -456,26 +487,12 @@ namespace ts {
                                     options[opt.name] = true;
                                     break;
                                 case "string":
-                                    // --library option can take multiple arguments.
-                                    // i.e --library es5
-                                    //     --library es5,es6.array  // Note: space is not allow between comma
-                                    if (opt.paramType === Diagnostics.LIBRARY) {
-                                        const { libraryOptionFileNameMap, libraryOptionNames } = getLibraryOptions();
+                                    let value = tryParseLibraryCommandLineOption(args[i], opt, errors);
+                                    if (value) {
                                         if (!options[opt.name]) {
                                             options[opt.name] = [];
                                         }
-
-                                        const inputs = args[i].split(",");
-                                        for (const input of inputs) {
-                                            const libraryOption = input.toLowerCase();
-                                            if (hasProperty(libraryOptionFileNameMap, libraryOption)) {
-                                                (<string[]>options[opt.name]).push(libraryOption);
-                                            }
-                                            else {
-                                                errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, libraryOptionNames));
-                                                break;
-                                            }
-                                        }
+                                        (<string[]>options[opt.name]).concat(value);
                                     }
                                     else {
                                         options[opt.name] = args[i] || "";
@@ -698,6 +715,7 @@ namespace ts {
                 let value = jsonOptions[id];
                 const expectedType = typeof optType === "string" ? optType : "string";
                 if (typeof value === expectedType) {
+                    // Parse option that has type, "Map<String>"
                     if (typeof optType !== "string") {
                         const key = value.toLowerCase();
                         if (hasProperty(optType, key)) {
@@ -708,6 +726,7 @@ namespace ts {
                             value = 0;
                         }
                     }
+
                     if (opt.isFilePath) {
                         switch (typeof value) {
                             case "string":
@@ -743,7 +762,16 @@ namespace ts {
                             value = ".";
                         }
                     }
-                    options[opt.name] = value;
+                    const libraryOptions = tryParseLibraryCommandLineOption(value, opt, errors);
+                    if (libraryOptions) {
+                        if (!options[opt.name]) {
+                            options[opt.name] = [];
+                        }
+                        (<string[]>options[opt.name]).concat(libraryOptions);
+                    }
+                    else {
+                        options[opt.name] = value;
+                    }
                 }
                 else {
                     errors.push(createCompilerDiagnostic(Diagnostics.Compiler_option_0_requires_a_value_of_type_1, id, expectedType));

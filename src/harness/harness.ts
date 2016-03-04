@@ -926,7 +926,21 @@ namespace Harness {
                                 options[option.name] = value.toLowerCase() === "true";
                                 break;
                             case "string":
-                                options[option.name] = value;
+                                const errorParsingLibraryCommandLineOption: ts.Diagnostic[] = [];
+                                const libraryOptions = ts.tryParseLibraryCommandLineOption(value, option, errorParsingLibraryCommandLineOption);
+                                if (libraryOptions) {
+                                    if (errorParsingLibraryCommandLineOption.length > 0) {
+                                        throw new Error(`Unknown value '${value}' for compiler option '${option.name}'.`);
+                                    }
+
+                                    if (!options[option.name]) {
+                                        options[option.name] = [];
+                                    }
+                                    (<string[]>options[option.name]).concat(libraryOptions);
+                                }
+                                else {
+                                    options[option.name] = value;
+                                }
                                 break;
                             // If not a primitive, the possible types are specified in what is effectively a map of options.
                             default:
@@ -1360,7 +1374,11 @@ namespace Harness {
 
             let match: RegExpExecArray;
             while ((match = optionRegex.exec(content)) != null) {
+                // Compiler option, "library", takes multiple inputs in the form of list separated by comma.
+                // e.g. @library : es5,es6.array,es6.generator  // Note: the list is strictly comma seperated and space is not allowed
+                // We will store it as-is then processed it in SetCompilerOptionsFromHarnessSetting function
                 opts[match[1]] = match[2];
+
             }
 
             return opts;
