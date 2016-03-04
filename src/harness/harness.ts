@@ -862,6 +862,11 @@ namespace Harness {
                 }
             }
 
+            // TODO (yuisu): implemented
+            function getUserDefinedLibFileName(options: ts.CompilerOptions): string[] {
+                return [];
+            }
+
             const newLine =
                 newLineKind === ts.NewLineKind.CarriageReturnLineFeed ? carriageReturnLineFeed :
                     newLineKind === ts.NewLineKind.LineFeed ? lineFeed :
@@ -871,7 +876,7 @@ namespace Harness {
                 getCurrentDirectory: () => currentDirectory,
                 getSourceFile,
                 getDefaultLibFileName: options => defaultLibFileName,
-                getUserDefinedLibFileName: options => [],
+                getUserDefinedLibFileName,
                 writeFile,
                 getCanonicalFileName,
                 useCaseSensitiveFileNames: () => useCaseSensitiveFileNames,
