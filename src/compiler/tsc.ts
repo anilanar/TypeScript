@@ -245,8 +245,13 @@ namespace ts {
         return options.watch && options.hasOwnProperty("watch");
     }
 
+    const directoryPath = getDirectoryPath(normalizePath(sys.getExecutingFilePath()));
+    const libraryFiles = sys.readDirectory(directoryPath, ".d.ts", [".ts", ".js"]).map(getBaseFileName);
+
     export function executeCommandLine(args: string[]): void {
-        const commandLine = parseCommandLine(args);
+
+        const commandLine = parseCommandLine(args, libraryFiles);
+
         let configFileName: string;                                 // Configuration file name (if any)
         let cachedConfigFileText: string;                           // Cached configuration file text, used for reparsing (if any)
         let configFileWatcher: FileWatcher;                         // Configuration file watcher
@@ -380,7 +385,8 @@ namespace ts {
                 sys.exit(ExitStatus.DiagnosticsPresent_OutputsSkipped);
                 return;
             }
-            const configParseResult = parseJsonConfigFileContent(configObject, sys, getNormalizedAbsolutePath(getDirectoryPath(configFileName), sys.getCurrentDirectory()), commandLine.options, configFileName);
+            const configParseResult = parseJsonConfigFileContent(configObject, sys, getNormalizedAbsolutePath(getDirectoryPath(configFileName),
+                sys.getCurrentDirectory()), commandLine.options, libraryFiles, configFileName);
             if (configParseResult.errors.length > 0) {
                 reportDiagnostics(configParseResult.errors, /* compilerHost */ undefined);
                 sys.exit(ExitStatus.DiagnosticsPresent_OutputsSkipped);
@@ -680,7 +686,7 @@ namespace ts {
 
             if (option.paramType === Diagnostics.LIBRARY) {
                 description = getDiagnosticText(option.description);
-                descriptionDetailMap[description] = getLibraryOptions().libraryOptionNames;
+                descriptionDetailMap[description] = getLibraryOptionsMap(libraryFiles).libraryOptionNames;
             }
             else {
                 description = getDiagnosticText(option.description);

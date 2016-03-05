@@ -932,7 +932,7 @@ namespace Harness {
                                 break;
                             case "string":
                                 const errorParsingLibraryCommandLineOption: ts.Diagnostic[] = [];
-                                const libraryOptions = ts.tryParseLibraryCommandLineOption(value, option, errorParsingLibraryCommandLineOption);
+                                const libraryOptions = ts.tryParseLibraryCommandLineOption([], value, option, errorParsingLibraryCommandLineOption);
                                 if (libraryOptions) {
                                     if (errorParsingLibraryCommandLineOption.length > 0) {
                                         throw new Error(`Unknown value '${value}' for compiler option '${option.name}'.`);

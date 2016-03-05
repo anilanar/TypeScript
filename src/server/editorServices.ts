@@ -1190,7 +1190,7 @@ namespace ts.server {
                 return { succeeded: false, error: rawConfig.error };
             }
             else {
-                const parsedCommandLine = ts.parseJsonConfigFileContent(rawConfig.config, this.host, dirPath, /*existingOptions*/ {}, configFilename);
+                const parsedCommandLine = ts.parseJsonConfigFileContent(rawConfig.config, this.host, dirPath, /*existingOptions*/ {}, [], configFilename);
                 Debug.assert(!!parsedCommandLine.fileNames);
 
                 if (parsedCommandLine.errors && (parsedCommandLine.errors.length > 0)) {

@@ -140,8 +140,8 @@ namespace ts {
         {
             name: "out",
             type: "string",
-            isFilePath: false, // This is intentionally broken to support compatability with existing tsconfig files
-                               // for correct behaviour, please use outFile
+            isFilePath: false, // This is intentionally broken to support compatibility with existing tsconfig files
+                               // for correct behavior, please use outFile
             paramType: Diagnostics.FILE,
         },
         {
@@ -377,7 +377,7 @@ namespace ts {
 
     let libraryOptionsMapCache: LibraryOptionMap;
 
-    export function getLibraryOptions(): LibraryOptionMap {
+    export function getLibraryOptionsMap(libraryFiles: string[]): LibraryOptionMap {
         if (libraryOptionsMapCache) {
             return libraryOptionsMapCache;
         }
@@ -385,9 +385,8 @@ namespace ts {
         const libraryOptionFileNameMap: Map<string> = {};
         const libraryOptionNames: string[] = [];
 
-        const directoryPath = getDirectoryPath(normalizePath(sys.getExecutingFilePath()));
-        const libraryFiles = sys.readDirectory(directoryPath, ".d.ts", [".ts", ".js"]).map(getBaseFileName);
-
+        const directoryPath = getDirectoryPath(normalizePath(sys.getExecutingFilePath()));
+        libraryFiles = sys.readDirectory(directoryPath, ".d.ts", [".ts", ".js"]).map(getBaseFileName);
         // Convert available library files into library options that users can specify.
         for (const file of libraryFiles) {
             // Only consider library prefix with lib. as that is the format we should to indicate compiler generated library files
@@ -413,23 +412,27 @@ namespace ts {
      * @param errors
      */
     /* @internal */
-    export function tryParseLibraryCommandLineOption(argument: string, opt: CommandLineOption, errors: Diagnostic[]): string[] {
+    export function tryParseLibraryCommandLineOption(libraryFiles: string[], argument: string, opt: CommandLineOption, errors: Diagnostic[]): string[] {
         // --library option can take multiple arguments.
         // i.e --library es5
         //     --library es5,es6.array  // Note: space is not allow between comma
         if (opt.paramType === Diagnostics.LIBRARY) {
-            const { libraryOptionFileNameMap, libraryOptionNames } = getLibraryOptions();
+            const { libraryOptionFileNameMap, libraryOptionNames } = getLibraryOptionsMap(libraryFiles);
             const libraryFileNames: string[] = [];
             const inputs = argument.split(",");
             for (const input of inputs) {
-                const libraryOption = input.toLowerCase();
-                const libraryFileName = getProperty(libraryOptionFileNameMap, libraryOption);
-                if (libraryFileName) {
-                    libraryFileNames.push(libraryFileName);
-                }
-                else {
-                    errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, libraryOptionNames));
-                    break;
+                // This is to make sure we are properly handle this cases:
+                //  --library es5, es6 => argument is [es5,] when split with ",", it will be ["es5", ""]
+                if (input !== "") {
+                    const libraryOption = input.toLowerCase();
+                    const libraryFileName = getProperty(libraryOptionFileNameMap, libraryOption);
+                    if (libraryFileName) {
+                        libraryFileNames.push(libraryFileName);
+                    }
+                    else {
+                        errors.push(createCompilerDiagnostic((<CommandLineOptionOfCustomType>opt).error, libraryOptionNames));
+                        break;
+                    }
                 }
             }
            return libraryFileNames;
@@ -437,7 +440,13 @@ namespace ts {
         return undefined;
     }
 
-    export function parseCommandLine(commandLine: string[], readFile?: (path: string) => string): ParsedCommandLine {
+    /**
+     * 
+     * @param commandLine
+     * @param libraryFiles
+     * @param readFile
+     */
+    export function parseCommandLine(commandLine: string[], libraryFiles: string[], readFile?: (path: string) => string): ParsedCommandLine {
         const options: CompilerOptions = {};
         const fileNames: string[] = [];
         const errors: Diagnostic[] = [];
@@ -487,12 +496,12 @@ namespace ts {
                                     options[opt.name] = true;
                                     break;
                                 case "string":
-                                    let value = tryParseLibraryCommandLineOption(args[i], opt, errors);
+                                    let value = tryParseLibraryCommandLineOption(libraryFiles, args[i], opt, errors);
                                     if (value) {
                                         if (!options[opt.name]) {
                                             options[opt.name] = [];
                                         }
-                                        (<string[]>options[opt.name]).concat(value);
+                                        (<string[]>options[opt.name]).push(...value);
                                     }
                                     else {
                                         options[opt.name] = args[i] || "";
@@ -620,8 +629,8 @@ namespace ts {
       * @param basePath A root directory to resolve relative path entries in the config
       *    file to. e.g. outDir
       */
-    export function parseJsonConfigFileContent(json: any, host: ParseConfigHost, basePath: string, existingOptions: CompilerOptions = {}, configFileName?: string): ParsedCommandLine {
-        const { options: optionsFromJsonConfigFile, errors } = convertCompilerOptionsFromJson(json["compilerOptions"], basePath, configFileName);
+    export function parseJsonConfigFileContent(json: any, host: ParseConfigHost, basePath: string, existingOptions: CompilerOptions = {}, libraryFiles: string[] = [], configFileName?: string): ParsedCommandLine {
+        const { options: optionsFromJsonConfigFile, errors } = convertCompilerOptionsFromJson(json["compilerOptions"], basePath, libraryFiles, configFileName);
 
         const options = extend(existingOptions, optionsFromJsonConfigFile);
 
@@ -694,7 +703,7 @@ namespace ts {
         }
     }
 
-    export function convertCompilerOptionsFromJson(jsonOptions: any, basePath: string, configFileName?: string): { options: CompilerOptions, errors: Diagnostic[] } {
+    export function convertCompilerOptionsFromJson(jsonOptions: any, basePath: string, libraryFiles: string[], configFileName?: string): { options: CompilerOptions, errors: Diagnostic[] } {
         const options: CompilerOptions = {};
         const errors: Diagnostic[] = [];
 
@@ -762,7 +771,7 @@ namespace ts {
                             value = ".";
                         }
                     }
-                    const libraryOptions = tryParseLibraryCommandLineOption(value, opt, errors);
+                    const libraryOptions = tryParseLibraryCommandLineOption(libraryFiles, value, opt, errors);
                     if (libraryOptions) {
                         if (!options[opt.name]) {
                             options[opt.name] = [];
